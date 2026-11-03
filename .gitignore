@@ -1,0 +1,21 @@
+# 秘密情報（APIキー、LINEのトークン、SORACOMの認証情報）
+.env
+.env.*
+!.env.example
+
+# Claude Code の個人設定
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 録音・ログ（親の声や生活記録を公開しない）
+recordings/
+*.wav
+*.log
+
+# macOS
+.DS_Store
