@@ -19,3 +19,9 @@ recordings/
 
 # macOS
 .DS_Store
+
+# 家族が送った写真（公開しない）
+photos/
+*.jpg
+*.jpeg
+*.png
