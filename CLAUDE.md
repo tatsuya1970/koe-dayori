@@ -28,7 +28,7 @@
 - **要約・判断**：Claude API。役割ごとにサブエージェントに分ける構成を目指す（要約、緊急度の判定、「いつもと違う」の検知、親向けの言葉への言い換え）
 - **家族への通知**：LINE Messaging API（LINE Notifyは終了済みなので使わない）
 - **見守り**：人感センサー（秋月 SB612B など。あればミリ波 LD2410）
-- **通信**：SORACOM IoT SIM ＋ USB LTEドングル。遠隔SSHは SORACOM Napter、センサーログは SORACOM Harvest
+- **通信**：**ハッカソン中はWi-Fi**（11/3変更。手持ちのドングルは3G専用で使えず、LTEドングルは買わない）。通信はNetworkManager任せにし、Wi-FiでもLTEでも同じコードで動くようにする。SORACOM（IoT SIM＋LTE、Napter、Harvest）は製品版で入れる
 - **入出力**：USBスピーカーフォン、大型の押しボタン（COM→GND、NO→GPIO17）
 
 ## 開発で守ること
