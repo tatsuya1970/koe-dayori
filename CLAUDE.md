@@ -51,6 +51,14 @@
   - `cd`、出力のリダイレクト、終了コードの確認は、それぞれ別のコマンドにする
 - 回答は日本語で行う
 
+## Mac と Pi の分担（11/4決定）
+
+- **Pi（`~/koe-dayori`）のClaude Code**：実機で動かす作業すべて（コードを書く・動かす、GPIO、音声、LINE、Tailscale、systemd）
+- **Mac（`~/projects/ClaudeCodeHack`）のClaude Code**：企画・仕様書・READMEの整理、AI-CompanyのMEMORY.mdへの記録
+- 同じリポジトリを両方で触るので、**作業を始める前に `git pull`、区切りごとに `git push`** する
+- PiからはDropboxの `AI-Company/MEMORY.md` に書けない。Piで決めた重要なことは `README.md` に書いておき、Mac側で MEMORY.md に写す
+- `.env` の鍵は本人が `nano` で書く。チャットに貼らない
+
 ## 記録のルール
 
 - 重要な決定（方針の変更、タスクの中止・追加）は、次の2か所に記録する
