@@ -17,6 +17,11 @@ recordings/
 *.wav
 *.log
 
+# 文字起こしと送信の貯め置き（親の言葉が入る）
+data/
+*.sqlite3
+*.sqlite3-*
+
 # macOS
 .DS_Store
 
