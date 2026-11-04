@@ -142,6 +142,9 @@
 - 家族のLINEの返信（Webhook）は **Tailscale Funnel** で受ける。無料で決まったURLになり、ドメインを買わずに済む。実家に置いたPiへMacからSSHで入る遠隔保守も兼ねる（SORACOM Napterの代わり）
 - Cloudflare Tunnel＋独自ドメインは、製品版で自分のドメインにするときの候補として残す
 - LINEのチャネルは11/4に作成済み。グループIDは最初に一度だけ、一時URL（trycloudflare）と `tools/capture_group_id.py` で取る
+- **11/4 グループID取得済み**。1つのグループに入れる公式アカウントは1つだけ（ほかがいると join の直後に leave になる）。実家の家族グループに入れるときも先に確かめる
+- **11/5 Tailscale Funnel の導入済み**。Piのtailnet上の名前は `koe-dayori`、Funnel は 443 → `127.0.0.1:8000`。LINE の Webhook URL を `https://koe-dayori.<tailnet>.ts.net/callback` に替え、「検証」が成功した。Mac も同じ tailnet に入れた（遠隔SSH用）
+- 残り：管理画面で `koe-dayori` の鍵の期限切れを止める（Disable key expiry）。今のままだと 2027-05 に切れる
 
 ## 応募内容（原文）
 
