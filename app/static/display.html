@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>声だより</title>
+<style>
+  :root {
+    --bg: #fbf7ef;
+    --ink: #1f1b16;
+    --sub: #6b6257;
+    --accent: #b5452b;
+    --card: #ffffff;
+    --line: #e4dccd;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Hiragino Maru Gothic ProN", "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
+    overflow: hidden;
+    transition: background 1s, color 1s;
+  }
+  .screen { display: none; height: 100vh; padding: 4vh 5vw; flex-direction: column; }
+  .screen.on { display: flex; }
+
+  /* ふだん */
+  #idle .clock { text-align: center; margin-top: 2vh; }
+  #idle .date { font-size: 5vh; color: var(--sub); }
+  #idle .time { font-size: 16vh; font-weight: bold; letter-spacing: 0.05em; line-height: 1.1; }
+  #idle .label { font-size: 3.4vh; color: var(--sub); margin: 3vh 0 1.5vh; border-bottom: 2px solid var(--line); padding-bottom: 0.8vh; }
+  #idle .recent { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1.6vh; }
+  #idle .item { display: flex; gap: 2vw; align-items: center; background: var(--card); border-radius: 1.5vh; padding: 1.6vh 2vw; }
+  #idle .item img { height: 11vh; width: 11vh; object-fit: cover; border-radius: 1vh; }
+  #idle .item .who { font-size: 3vh; color: var(--sub); }
+  #idle .item .txt { font-size: 3.8vh; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #idle .item:first-child .txt { font-size: 4.6vh; }
+  #idle .empty { font-size: 4vh; color: var(--sub); text-align: center; margin-top: 6vh; }
+
+  /* 新着 */
+  #new { justify-content: center; align-items: center; text-align: center; background: #fff3d6; }
+  #new .count { font-size: 11vh; font-weight: bold; color: var(--accent); animation: glow 3s ease-in-out infinite; }
+  #new .from { font-size: 7vh; margin-top: 3vh; }
+  #new .ask { font-size: 6vh; margin-top: 7vh; padding: 2.5vh 5vw; border: 0.6vh solid var(--ink); border-radius: 3vh; }
+  @keyframes glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  /* 再生中 */
+  #playing .head { font-size: 5vh; color: var(--sub); }
+  #playing .head b { color: var(--ink); font-size: 6.5vh; }
+  #playing .body { flex: 1; display: flex; gap: 4vw; align-items: center; margin-top: 3vh; min-height: 0; }
+  #playing .body img { max-height: 100%; max-width: 55%; object-fit: contain; border-radius: 2vh; }
+  #playing .text { font-size: 7vh; line-height: 1.55; white-space: pre-wrap; overflow: hidden; }
+  #playing.photo .text { font-size: 5.5vh; }
+
+  /* ひとこと（送りました など） */
+  #notice {
+    position: fixed; left: 50%; bottom: 6vh; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); font-size: 6vh; padding: 2vh 5vw; border-radius: 3vh;
+    display: none;
+  }
+  #notice.on { display: block; }
+
+  /* 夜は暗く（U26 仮） */
+  body.night { background: #000; color: #555; }
+  body.night #idle .date, body.night #idle .label, body.night #idle .recent { display: none; }
+  body.night #idle .clock { margin-top: 30vh; }
+  body.night #idle .time { font-size: 10vh; color: #333; }
+
+  #offline { position: fixed; top: 1vh; right: 1vw; font-size: 2.2vh; color: var(--sub); display: none; }
+</style>
+</head>
+<body>
+  <section id="idle" class="screen on">
+    <div class="clock"><div class="date"></div><div class="time"></div></div>
+    <div class="label">これまでのお便り</div>
+    <div class="recent"></div>
+  </section>
+
+  <section id="new" class="screen">
+    <div class="count"></div>
+    <div class="from"></div>
+    <div class="ask">受話器を取ってください</div>
+  </section>
+
+  <section id="playing" class="screen">
+    <div class="head"></div>
+    <div class="body"><img alt="" hidden><div class="text"></div></div>
+  </section>
+
+  <div id="notice"></div>
+  <div id="offline">更新を待っています…</div>
+
+<script>
+  const $ = (sel) => document.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function show(mode) {
+    for (const id of ["idle", "new", "playing"]) $("#" + id).classList.toggle("on", id === mode);
+  }
+
+  function render(s) {
+    document.body.classList.toggle("night", s.night);
+    $("#idle .date").textContent = s.clock.date;
+    $("#idle .time").textContent = s.clock.time;
+
+    if (s.mode === "idle") {
+      const list = s.recent.map((r) => `
+        <div class="item">
+          ${r.photo ? `<img src="${esc(r.photo)}" alt="">` : ""}
+          <div><div class="who">${esc(r.sender)}さん・${esc(r.when)}</div><div class="txt">${esc(r.text)}</div></div>
+        </div>`).join("");
+      $("#idle .recent").innerHTML = list || '<div class="empty">まだお便りはありません</div>';
+    }
+
+    if (s.mode === "new") {
+      $("#new .count").textContent = `お便りが ${s.waiting.count} 件あります`;
+      $("#new .from").textContent = s.waiting.senders.map((n) => n + "さん").join("、") + "から";
+    }
+
+    if (s.mode === "playing" && s.playing) {
+      const p = s.playing;
+      $("#playing .head").innerHTML = `<b>${esc(p.sender)}さん</b>から　${esc(p.when)}`;
+      $("#playing .text").textContent = p.text;
+      const img = $("#playing img");
+      img.hidden = !p.photo;
+      if (p.photo && img.getAttribute("src") !== p.photo) img.src = p.photo;
+      $("#playing").classList.toggle("photo", !!p.photo);
+    }
+
+    show(s.mode);
+    $("#notice").textContent = s.notice || "";
+    $("#notice").classList.toggle("on", !!s.notice);
+  }
+
+  async function tick() {
+    try {
+      const res = await fetch("/api/state", { cache: "no-store" });
+      render(await res.json());
+      $("#offline").style.display = "none";
+    } catch (e) {
+      $("#offline").style.display = "block";
+    }
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# 入れ方（Pi）：
+#   chmod +x ~/koe-dayori/deploy/kiosk.sh
+#   mkdir -p ~/.config/autostart
+#   cp deploy/kiosk.desktop ~/.config/autostart/
+# Pi OS（Bookworm 以降の labwc）でも ~/.config/autostart の .desktop は起動時に読まれる。
+# 動かなければ ~/.config/labwc/autostart に「~/koe-dayori/deploy/kiosk.sh &」と書く。
+[Desktop Entry]
+Type=Application
+Name=koe-dayori kiosk
+Exec=sh -c "$HOME/koe-dayori/deploy/kiosk.sh"
+X-GNOME-Autostart-enabled=true

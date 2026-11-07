@@ -1,0 +1,25 @@
+# 声だより（ユーザー単位の systemd）。電源を入れたら起動し、落ちたら起動し直す（仕様書 8・11章）
+#
+# 入れ方（Pi）：
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/koe-dayori.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now koe-dayori
+#   sudo loginctl enable-linger $USER     # ログインしなくても起動するように（1回だけ）
+# 様子を見る：
+#   journalctl --user -u koe-dayori -f
+
+[Unit]
+Description=koe-dayori (声だより)
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/koe-dayori
+ExecStart=%h/koe-dayori/.venv/bin/python -m app.main
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
