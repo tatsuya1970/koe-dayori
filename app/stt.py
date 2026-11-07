@@ -1,11 +1,16 @@
 """faster-whisper で、録音（WAV）を日本語の文字にする。"""
 
+import logging
+import threading
 import time
 from dataclasses import dataclass
 
 from app import config
 
+log = logging.getLogger(__name__)
+
 _model = None
+_lock = threading.Lock()  # 起動時の先読みと、送り係が同時に読み込まないように
 
 
 @dataclass
@@ -18,11 +23,30 @@ class Transcript:
 
 
 def _get_model():
+    """モデルを読み込む（1回だけ）。
+
+    11/7：手元にあるモデルを、Hugging Face に問い合わせずに使う。問い合わせると、
+    この Wi-Fi（IPv6 が外に出ない）では数十秒〜5分以上待たされ、8秒の録音の文字起こしに 79.5 秒かかった。
+    手元から読めば 1.8 秒。手元にないとき（初めて動かすとき）だけダウンロードする。
+    """
     global _model
-    if _model is None:
-        from faster_whisper import WhisperModel
-        _model = WhisperModel(config.WHISPER_MODEL, device="cpu", compute_type="int8")
+    with _lock:
+        if _model is None:
+            from faster_whisper import WhisperModel
+            started = time.monotonic()
+            try:
+                _model = WhisperModel(config.WHISPER_MODEL, device="cpu", compute_type="int8",
+                                      local_files_only=True)
+            except Exception as e:
+                log.info("手元に文字起こしのモデルがないので、ダウンロードします（%s）: %s", config.WHISPER_MODEL, e)
+                _model = WhisperModel(config.WHISPER_MODEL, device="cpu", compute_type="int8")
+            log.info("文字起こしのモデルを読み込みました（%s、%.1f秒）", config.WHISPER_MODEL, time.monotonic() - started)
     return _model
+
+
+def preload():
+    """起動時に裏で読み込んでおき、最初に話した1回目を待たせない。"""
+    threading.Thread(target=_get_model, name="stt-preload", daemon=True).start()
 
 
 def transcribe(wav_path):

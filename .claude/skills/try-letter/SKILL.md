@@ -9,7 +9,7 @@ description: 家族からのお便り（LINE の返信）が届いたことに�
 
 1. 試しのお便りを送る（引数がなければ、下の例を使う）
    - `.venv/bin/python -m tools.fake_line_event "週末にそっちへ行くね。お昼は一緒に食べよう🍙" --name たつや`
-2. 数秒待ってログを見る：`journalctl --user -u koe-dayori -n 20 --no-pager`
+2. 数秒待ってログを見る：`journalctl _SYSTEMD_USER_UNIT=koe-dayori.service -n 20 --no-pager`
    - 「お便りを 1 件受け取りました」「お便りの準備ができました（たつやさんから）」が出ること
 3. 言い換えの結果を見る：`curl -s http://127.0.0.1:8001/api/state` の `mode` が `new`、`waiting.count` が増えていること
 4. 本人に受話器を取ってもらい（`--keyboard` なら Enter）、読み上げとモニターの表示を確かめてもらう

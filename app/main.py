@@ -17,7 +17,7 @@ import signal
 import threading
 from datetime import datetime
 
-from app import clock, config, daily, db as koe_db, display, inbox, notify, outbox, pipeline, sensor, tunnel, webhook
+from app import clock, config, daily, db as koe_db, display, inbox, notify, outbox, pipeline, sensor, stt, tunnel, webhook
 
 log = logging.getLogger("koe")
 
@@ -147,6 +147,7 @@ def main():
     from app.audio import Audio
     from app.phone import Phone
 
+    stt.preload()  # 文字起こしのモデルを先に読んでおく（最初の1回目を待たせない）
     audio = Audio()
     keeper = Housekeeper(audio)
     phone = Phone(audio, send=make_send(), display_state=display.STATE, on_played=on_played)

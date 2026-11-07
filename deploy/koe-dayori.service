@@ -7,7 +7,7 @@
 #   systemctl --user enable --now koe-dayori
 #   sudo loginctl enable-linger $USER     # ログインしなくても起動するように（1回だけ）
 # 様子を見る：
-#   journalctl --user -u koe-dayori -f
+#   journalctl _SYSTEMD_USER_UNIT=koe-dayori.service -f
 
 [Unit]
 Description=koe-dayori (声だより)

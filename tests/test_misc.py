@@ -53,3 +53,27 @@ class NotifyTest(TempDataTestCase):
             self.assertEqual(notify.flush(self.conn), 2)
         self.assertEqual([c.args[0] for c in push.call_args_list], ["聞きました", "今日の様子"])
         self.assertEqual(notify.count_by_kind(self.conn, datetime(2000, 1, 1)), {"played": 1, "daily": 1})
+
+
+class SttModelTest(TempDataTestCase):
+    def setUp(self):
+        super().setUp()
+        from app import stt
+        p = mock.patch.object(stt, "_model", None)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_uses_local_model_without_asking_hub(self):
+        from app import stt
+        with mock.patch("faster_whisper.WhisperModel") as model:
+            stt._get_model()
+            stt._get_model()  # 2回目は読み込まない
+        model.assert_called_once()
+        self.assertTrue(model.call_args.kwargs["local_files_only"])
+
+    def test_downloads_when_not_cached(self):
+        from app import stt
+        with mock.patch("faster_whisper.WhisperModel", side_effect=[RuntimeError("not cached"), "m"]) as model:
+            self.assertEqual(stt._get_model(), "m")
+        self.assertEqual(model.call_count, 2)
+        self.assertNotIn("local_files_only", model.call_args.kwargs)
