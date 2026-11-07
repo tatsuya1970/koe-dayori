@@ -146,3 +146,38 @@ class LimitTest(TempDataTestCase):
             phone._session.join(2)
             phone.wait_idle(2)
         self.assertEqual([e for e in audio.log if e == ("beep",)], [("beep",), ("beep",)])
+
+
+class HandsetTroubleTest(TempDataTestCase):
+    """USB 音声アダプターが抜けているときなど（11/8 朝、実機で起きた）。"""
+
+    def test_record_error_is_not_sent(self):
+        audio = FakeAudio()
+        audio.record = lambda path, stop, limit, warn_at=None, on_warn=None: "error"
+        sent = []
+        phone = Phone(audio, send=sent.append)
+        phone.lift()
+        phone.wait_idle(2)
+        self.assertEqual(sent, [])
+        self.assertIn(("speaker", "受話器の調子がよくないようです。いったん置いて、もう一度取ってください"), audio.log)
+
+    def test_playback_failure_keeps_letter_unplayed(self):
+        letter(self.conn, "元気？", sender="たつや")
+        audio = FakeAudio()
+        audio.say_handset = lambda text, stop: False  # 置いていないのに流せなかった
+        played = []
+        phone = Phone(audio, send=lambda wav: None, on_played=played.append)
+        phone.lift()
+        phone.wait_idle(2)
+        self.assertEqual(len(inbox.unplayed(self.conn)), 1)  # 「聞いた」にしない
+        self.assertEqual(played, [])
+        self.assertEqual([e[0] for e in audio.log], ["speaker"])
+
+    def test_beep_failure_does_not_record(self):
+        audio = FakeAudio()
+        audio.beep_handset = lambda stop=None: False
+        phone = Phone(audio, send=lambda wav: None)
+        phone.lift()
+        phone.wait_idle(2)
+        self.assertNotIn(("record",), audio.log)
+        self.assertEqual([e[0] for e in audio.log], ["speaker"])

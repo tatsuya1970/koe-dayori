@@ -26,6 +26,8 @@ RESULT_WORDS = {
 }
 # 文字起こしなどで止まったとき。録音は残っていないので「あとで送る」とは言わない
 FAILED_WORDS = "うまく送れませんでした。お手数ですが、もう一度お話しください"
+# 受話器の音が出せない・録れないとき（USB 音声アダプターが抜けた など）。本体のスピーカーから伝える
+HANDSET_TROUBLE_WORDS = "受話器の調子がよくないようです。いったん置いて、もう一度取ってください"
 
 
 class Phone:
@@ -75,11 +77,14 @@ class Phone:
         conn = koe_db.connect(self.db_path)
         try:
             if not self._play_letters(conn):
+                if not self.hung_up.is_set():  # 置いていないのに止まった＝受話器の音が出せない
+                    self._handset_trouble()
                 return
             if self.hung_up.is_set():
                 return
-            self.audio.beep_handset(self.hung_up)
-            if self.hung_up.is_set():
+            if not self.audio.beep_handset(self.hung_up):
+                if not self.hung_up.is_set():
+                    self._handset_trouble()
                 return
             wav = Path(tempfile.mkdtemp(prefix="koe-rec-")) / "voice.wav"
             reason = self.audio.record(
@@ -88,6 +93,9 @@ class Phone:
                 warn_at=config.RECORD_WARN_SECONDS,
                 on_warn=lambda: self.audio.say_handset("もうすぐ終わります", self.hung_up),
             )
+            if reason == "error" or not wav.exists():
+                self._handset_trouble()  # 録れていないものは送らない
+                return
             if reason == "limit":
                 self.audio.beep_handset()
             self._outgoing.put(wav)
@@ -97,6 +105,12 @@ class Phone:
             if self.display:
                 self.display.clear_letter()
             conn.close()
+
+    def _handset_trouble(self):
+        log.error("受話器の音が出せないか、録音できません。USB 音声アダプターがつながっているか確かめてください")
+        if self.display:
+            self.display.show_notice("受話器の調子がよくありません")
+        self.audio.say_speaker(HANDSET_TROUBLE_WORDS)
 
     def _play_letters(self, conn):
         """お便りを再生する。途中で受話器を置かれたら False。"""

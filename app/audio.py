@@ -29,7 +29,10 @@ class Audio:
     # ---- 再生 ----
 
     def _play(self, wav, device, stop=None):
-        """最後まで流れたら True。stop が立って途中で止めたら False。"""
+        """最後まで流れたら True。stop が立って途中で止めたら、または流せなかったら False。
+
+        流せなかったとき（デバイスがない など）に True を返すと、聞いていないお便りが「聞いた」になってしまう。
+        """
         proc = subprocess.Popen(["aplay", "-q", "-D", device, str(wav)])
         while proc.poll() is None:
             if stop is not None and stop.wait(0.05):
@@ -38,6 +41,9 @@ class Audio:
                 return False
             if stop is None:
                 time.sleep(0.05)
+        if proc.returncode != 0:
+            log.error("音を出せません（終了コード %s）。デバイス名（%s）を確かめてください", proc.returncode, device)
+            return False
         return True
 
     def say_handset(self, text, stop):
@@ -61,7 +67,11 @@ class Audio:
     # ---- 録音 ----
 
     def record(self, path, stop, limit, warn_at=None, on_warn=None):
-        """16kHz・モノラル・WAV で録る。受話器を置いたら 'hangup'、上限に達したら 'limit' を返す。"""
+        """16kHz・モノラル・WAV で録る。
+
+        受話器を置いたら 'hangup'、上限に達したら 'limit'、
+        arecord が自分で終わってしまったら（デバイスがない など）'error' を返す。
+        """
         proc = subprocess.Popen([
             "arecord", "-q", "-D", self.handset_rec,
             "-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "wav", str(path),
@@ -87,5 +97,7 @@ class Audio:
             except subprocess.TimeoutExpired:
                 proc.kill()
         else:
-            log.error("録音が止まりました（終了コード %s）。マイクのデバイス名を確かめてください", proc.returncode)
+            log.error("録音が止まりました（終了コード %s）。マイクのデバイス名（%s）を確かめてください",
+                      proc.returncode, self.handset_rec)
+            return "error"
         return reason
