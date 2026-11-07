@@ -1,0 +1,26 @@
+# LINE の受け口のトンネル（Cloudflare Quick Tunnel、ユーザー単位の systemd）。11/7 に Tailscale Funnel から替えた
+#
+# Quick Tunnel は起動するたびに URL が変わる。新しい URL は app.main が窓口（127.0.0.1:20241/quicktunnel）から
+# 聞いて、LINE に自動で登録し直す（app/tunnel.py）。アカウントもドメインも要らない。
+# この Wi-Fi では IPv6 と QUIC（UDP）が外に出ないので、IPv4・http2（TCP）に固定する。
+#
+# 入れ方（Pi）：
+#   cloudflared を ~/.local/bin に置く（GitHub の公式リリース cloudflared-linux-arm64）
+#   cp deploy/koe-tunnel.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now koe-tunnel
+# 様子を見る：
+#   journalctl --user -u koe-tunnel -f
+
+[Unit]
+Description=koe-dayori LINE webhook tunnel (Cloudflare Quick Tunnel)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/cloudflared tunnel --no-autoupdate --edge-ip-version 4 --protocol http2 --metrics 127.0.0.1:20241 --url http://127.0.0.1:8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

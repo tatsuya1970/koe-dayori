@@ -146,6 +146,16 @@
 - **11/5 Tailscale Funnel の導入済み**。Piのtailnet上の名前は `koe-dayori`、Funnel は 443 → `127.0.0.1:8000`。LINE の Webhook URL を `https://koe-dayori.<tailnet>.ts.net/callback` に替え、「検証」が成功した。Mac も同じ tailnet に入れた（遠隔SSH用）
 - 残り：管理画面で `koe-dayori` の鍵の期限切れを止める（Disable key expiry）。今のままだと 2027-05 に切れる
 
+## 決定の変更：返信の受け口を Cloudflare Quick Tunnel に替える（2026-11-07、Pi で決定）
+
+- **起きたこと**：本物の LINE の返信が Pi に届かなかった。LINE の Webhook の試験 API が毎回 `COULD_NOT_CONNECT`（`Session protocol negotiation failure`）を返した。LINE 側の受け口の設定は正しく、有効だった
+- **切り分け**：Pi から Funnel の公開側（103.84.155.x）に curl すると、TLS 1.2 でも 1.3 でも、HTTP/1.1 でも HTTP/2 でも通る（署名なしで 403＝アプリまで届く）。証明書の検証も通る。同じ時刻に LINE の試験 API で両方を試すと、**Cloudflare Quick Tunnel は 200、Funnel は失敗**。アプリ側ではなく、Funnel の入り口と LINE の組み合わせの問題と確定した
+- **原因の推測（未確定）**：Funnel が出している証明書は Let's Encrypt の新しい系列（中間 `YE2`・ルート `Root YE`、ECDSA、4段の連なり）で、2026-11-05 05:35 JST に発行されたもの。11/5 の検証は成功していたので、証明書が替わってから LINE が受け付けなくなった可能性がある。Funnel の証明書は Tailscale が自動で用意し、こちらで替えられない
+- **替えたもの**：受け口は **Cloudflare Quick Tunnel（trycloudflare）**。アカウントもドメインも要らない（「ドメインは買わない」は守る）。Tailscale は遠隔SSH用にそのまま残す
+- **URL が起動のたびに変わる問題**：`app/tunnel.py` が30秒ごとに cloudflared の窓口（`127.0.0.1:20241/quicktunnel`）から今の URL を聞き、LINE に登録してある URL と違えば LINE の API で書き換える。親は何もしなくてよい。cloudflared は `deploy/koe-tunnel.service` で動かす
+- **この Wi-Fi で分かったこと**：IPv6 と QUIC（UDP）が外に出ないので、cloudflared は `--edge-ip-version 4 --protocol http2` に固定した
+- **製品版**：Quick Tunnel は稼働の保証がない。製品版では Cloudflare の名前付きトンネル＋自分のドメイン、または SORACOM に置き換える
+
 ## 応募内容（原文）
 
 スマホを持たない高齢の親との連絡兼見守りガジェットを作ります。

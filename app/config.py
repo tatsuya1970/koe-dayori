@@ -76,8 +76,10 @@ PHOTO_DIR = DATA_DIR / "photos"
 RETENTION_DAYS = 30  # 仕様書 10章
 
 # 家族からのお便り（仕様書 3.3）
-WEBHOOK_PORT = int(get("KOE_WEBHOOK_PORT", "8000"))  # Tailscale Funnel の先
+WEBHOOK_PORT = int(get("KOE_WEBHOOK_PORT", "8000"))  # Cloudflare Quick Tunnel の先（11/7 に Funnel から替えた）
 DISPLAY_PORT = int(get("KOE_DISPLAY_PORT", "8001"))  # モニター用。127.0.0.1 だけで待つ（外に出さない）
+# 11/7：受け口は Cloudflare Quick Tunnel。cloudflared の窓口から今の URL を聞いて LINE に登録する（app/tunnel.py）
+TUNNEL_METRICS_URL = get("KOE_TUNNEL_METRICS_URL", "http://127.0.0.1:20241")
 # U24 仮決め：mention＝公式アカウントにメンションした文だけ読む / all＝グループの文を全部読む。写真はどちらでも受ける
 REPLY_FILTER = get("KOE_REPLY_FILTER", "mention")
 SENDER_NAMES = _names(get("KOE_SENDER_NAMES", ""))  # 例：Tatsuya T=たつや

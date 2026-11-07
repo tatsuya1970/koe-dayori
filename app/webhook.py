@@ -1,4 +1,4 @@
-"""LINE の返信を受け取る（Tailscale Funnel の先。仕様書 3.3）。
+"""LINE の返信を受け取る（Cloudflare Quick Tunnel の先。11/7 に Funnel から替えた。仕様書 3.3）。
 
 - 署名が合わないものは 403 で捨てる
 - 決めた家族グループのメッセージだけを受ける

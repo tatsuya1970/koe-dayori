@@ -17,7 +17,7 @@ import signal
 import threading
 from datetime import datetime
 
-from app import clock, config, daily, db as koe_db, display, inbox, notify, outbox, pipeline, sensor, webhook
+from app import clock, config, daily, db as koe_db, display, inbox, notify, outbox, pipeline, sensor, tunnel, webhook
 
 log = logging.getLogger("koe")
 
@@ -46,6 +46,11 @@ class Housekeeper:
 
     def run_once(self, now=None):
         now = now or datetime.now()
+        # LINE の受け口をトンネルの今の URL に合わせる（失敗しても、ほかの仕事は続ける）
+        try:
+            tunnel.sync_webhook()
+        except Exception as e:
+            log.warning("LINE の受け口を登録し直せません（次の回に再試行）: %s", e)
         conn = koe_db.connect()
         out = outbox.connect()
         try:
