@@ -52,3 +52,22 @@
   - フックが止めた理由を表示するとき、行の頭を出すと秘密の一部が Claude の記録に残る。何行目かだけを出すようにした
 - 画面は Mac の Chrome（ヘッドレス）で3つの状態（新着・再生中・ふだん）を撮って確かめた
 - Pi で確かめること：音のデバイス名、arecord の止め方（SIGINT で WAV の見出しが正しく書かれるか）、フックスイッチの向き、Open JTalk の辞書と声のパス、キオスク表示の自動起動
+
+## 2026-11-07 夜 Pi で実機をつなぐ（Pi の Claude Code）
+
+- **音のデバイス**：USB スピーカーフォン（`CONEXANT USB AUDIO`）と USB 音声アダプター（C-Media）を `.env` に `plughw:CARD=名前,DEV=0` で書いた。カード番号ではなく名前なので、挿す順が変わっても同じ機器を指す
+  - **つまずき**：スピーカーフォンが `lsusb` にも `dmesg` にも出ない。Claude Code が「同じ端子でキーボードは見える → Pi は無事」「Mac では鳴る → 本体は無事」と順に切り分け、**充電専用のケーブル**だったと分かった
+  - 受話器用アダプターのマイク端子には、まだマイクがない（録音の最大振幅 72＝無音）。スピーカーフォンのマイクなら 10977 で、文字起こしもできた
+  - arecord を SIGINT で止めても WAV の見出しの長さが書き直されない（67108秒と出る）。faster-whisper は正しく 5.0 秒と読むので、今は困らない
+- **話して送る → LINE**：スピーカーフォンで話し、文字起こし → Claude（要約・緊急度を並列）→ LINE まで本物で通った
+- **LINE → 読み上げ → モニター**：本物の LINE の返信が Pi に届かなかった
+  - LINE の Webhook 試験 API は `COULD_NOT_CONNECT`（`Session protocol negotiation failure`）。Pi の中から試すと tailnet の近道（100.x）を通って成功してしまい、気づくのが遅れた
+  - 公開側の IP（103.84.155.x）に `--resolve` で当てると TLS 1.2/1.3・HTTP/1.1/2 とも通る。証明書は Let's Encrypt の新しい系列（YE2、ECDSA）で、11/5 05:35 JST 発行
+  - LINE の試験 API は **endpoint を指定すれば設定を変えずに任意の URL を試せる**。同じ時刻に Funnel と Cloudflare Quick Tunnel を試し、Quick Tunnel だけ 200 → 受け口を替えた（README の決定の変更）
+  - Quick Tunnel はこの Wi-Fi で QUIC（UDP）と IPv6 が外に出ず、`--edge-ip-version 4 --protocol http2` で通った
+  - URL が起動のたびに変わるので `app/tunnel.py` を作り、30秒ごとに LINE に登録し直す。トンネルを起動し直して自動で書き換わり、LINE の試験 API で 200 を確かめた
+  - **つまずき**：systemd で 5 秒おきに作り直したら trycloudflare が **429（作りすぎ）**。60秒おき・無制限にしたが、40分たっても解けなかったので夜は止めた
+- **文字起こし 79.5秒 → 13秒**：無音の録音でも 32 秒かかることから、文字にする処理ではなく読み込みを疑った。部品の import は 0.3 秒、モデルの読み込みは手元からなら 1.8 秒、Hugging Face に問い合わせると 5 分以上待たされた（IPv6 が外に出ない Wi-Fi）。`local_files_only=True` と起動時の先読みにした
+  - small と base を合成音声（16秒）で比べた：base は 4.6 秒だが「お母さん→おかわさん」「膝→日座」と聞き違える。見守りで体調の話を取り違えると困るので small のまま
+- **Claude Code の自動モード**：systemd の自動起動（enable）は「ずっと残る仕組み」として止められ、本人が許可してから入れた。鍵（ANTHROPIC_API_KEY）は本人が nano で書き、Claude Code は `sk-` で始まる行があるかだけを数えて確かめた
+- **フックスイッチ**：まだ配線していない（10分見張って GPIO17 は変化なし）
