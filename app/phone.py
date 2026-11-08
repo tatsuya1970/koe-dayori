@@ -144,7 +144,11 @@ class Phone:
                 words = RESULT_WORDS.get(result.status)
                 if words:
                     if self.display:
-                        self.display.show_notice(words)
+                        summary = getattr(result, "summary", None)
+                        if result.status == "sent" and summary:
+                            self.display.show_sent(summary)  # 「送りました」と、LINE に送った要約
+                        else:
+                            self.display.show_notice(words)
                     self.audio.say_speaker(words)
             except Exception:
                 log.exception("送る途中で止まりました")

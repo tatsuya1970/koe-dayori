@@ -181,3 +181,28 @@ class HandsetTroubleTest(TempDataTestCase):
         phone.wait_idle(2)
         self.assertNotIn(("record",), audio.log)
         self.assertEqual([e[0] for e in audio.log], ["speaker"])
+
+
+class SentDisplayTest(TempDataTestCase):
+    """送ったあと、LINE に送った要約をモニターに出す（11/8 追加）。"""
+
+    def run_with(self, result):
+        from app.display import State
+        audio = FakeAudio()
+        state = State()
+        phone = Phone(audio, send=lambda wav: result, display_state=state)
+        phone.lift()
+        audio.recording.wait(2)
+        phone.hang_up()
+        phone.wait_idle(2)
+        return state.snapshot()
+
+    def test_sent_shows_summary(self):
+        _, notice, sent = self.run_with(pipeline.Result("sent", summary="膝が痛いそうです。病院の予約を頼みたいとのこと"))
+        self.assertEqual(sent, "膝が痛いそうです。病院の予約を頼みたいとのこと")
+        self.assertIsNone(notice)
+
+    def test_queued_shows_notice_only(self):
+        _, notice, sent = self.run_with(pipeline.Result("queued"))
+        self.assertIsNone(sent)
+        self.assertEqual(notice, "送れませんでした。あとでもう一度送ります")

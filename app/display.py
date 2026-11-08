@@ -31,6 +31,14 @@ class State:
         self.playing_id = None
         self.notice = None
         self.notice_until = None
+        self.sent = None
+        self.sent_until = None
+
+    def show_sent(self, summary, seconds=10):
+        """親が話して送ったあと、LINE に送った要約を大きく出す（デモで何が届いたかを見せる）。"""
+        with self._lock:
+            self.sent = summary
+            self.sent_until = datetime.now().timestamp() + seconds
 
     def show_letter(self, letter_id):
         with self._lock:
@@ -47,8 +55,10 @@ class State:
 
     def snapshot(self):
         with self._lock:
-            notice = self.notice if self.notice_until and datetime.now().timestamp() < self.notice_until else None
-            return self.playing_id, notice
+            now = datetime.now().timestamp()
+            notice = self.notice if self.notice_until and now < self.notice_until else None
+            sent = self.sent if self.sent_until and now < self.sent_until else None
+            return self.playing_id, notice, sent
 
 
 STATE = State()
@@ -70,7 +80,7 @@ def _letter_json(row):
 
 def build_state(conn, now=None):
     now = now or datetime.now()
-    playing_id, notice = STATE.snapshot()
+    playing_id, notice, sent = STATE.snapshot()
     waiting = inbox.unplayed(conn)
     senders = []
     for r in waiting:
@@ -94,6 +104,8 @@ def build_state(conn, now=None):
         "playing": _letter_json(inbox.get(conn, playing_id)) if playing_id is not None else None,
         "recent": recent,
         "notice": notice,
+        # 再生中は再生を優先する（送ったあとすぐ受話器を取り直した場合）
+        "sent": sent if playing_id is None else None,
     }
 
 

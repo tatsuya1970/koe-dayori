@@ -14,6 +14,7 @@ class Result:
     status: str  # "sent"（送った）/ "queued"（貯めた。あとで送る）/ "empty"（何も話していない）
     transcript: stt.Transcript | None = None
     remaining: int = 0
+    summary: str | None = None  # LINE に送った要約（モニターに出す）。Claude に届かなかったときは None
 
 
 def handle_recording(wav_path, db, *, keep_audio=False, dry_run=False):
@@ -30,7 +31,8 @@ def handle_recording(wav_path, db, *, keep_audio=False, dry_run=False):
     if transcript.speech_seconds < config.MIN_SPEECH_SECONDS or not transcript.text:
         return Result("empty", transcript)
 
-    outbox.add(db, transcript.text, transcript.unclear)
+    job_id = outbox.add(db, transcript.text, transcript.unclear)
     sent, remaining = outbox.flush(db, dry_run=dry_run)
     status = "queued" if remaining else "sent"
-    return Result(status, transcript, remaining)
+    row = db.execute("SELECT summary FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    return Result(status, transcript, remaining, row["summary"] if row else None)

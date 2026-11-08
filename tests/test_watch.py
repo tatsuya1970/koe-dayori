@@ -112,3 +112,32 @@ class DisplayTest(TempDataTestCase):
         state = display.build_state(self.conn, at("07T10:00"))
         self.assertEqual(state["mode"], "playing")
         self.assertEqual(state["playing"]["text"], "元気？")
+
+
+class SentStateTest(TempDataTestCase):
+    def test_sent_hidden_while_playing(self):
+        display.STATE.show_sent("要約です")
+        self.addCleanup(lambda: display.STATE.show_sent(None, seconds=0))
+        self.assertEqual(display.build_state(self.conn, at("07T10:00"))["sent"], "要約です")
+        letter_id = letter(self.conn, "元気？")
+        display.STATE.show_letter(letter_id)
+        self.addCleanup(display.STATE.clear_letter)
+        self.assertIsNone(display.build_state(self.conn, at("07T10:00"))["sent"])
+
+
+class PipelineSummaryTest(TempDataTestCase):
+    def test_returns_summary_sent_to_line(self):
+        from app import agents, outbox, pipeline, stt
+        from app.agents.urgency import Urgency
+
+        transcript = stt.Transcript(text="膝が痛い", duration=3, speech_seconds=2, unclear=False, elapsed=1)
+        out = outbox.connect()
+        self.addCleanup(out.close)
+        wav = self.tmp / "v.wav"
+        wav.write_bytes(b"")
+        with mock.patch.object(stt, "transcribe", return_value=transcript), \
+             mock.patch.object(agents, "analyze", return_value=("膝が痛いそうです", Urgency("high", "体の痛み"))), \
+             mock.patch("app.line_client.push_text"):
+            result = pipeline.handle_recording(wav, out)
+        self.assertEqual((result.status, result.summary), ("sent", "膝が痛いそうです"))
+        self.assertIsInstance(result, pipeline.Result)
