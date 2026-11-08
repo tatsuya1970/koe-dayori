@@ -63,6 +63,10 @@ class State:
 
 STATE = State()
 
+# 起動のたびに変わる印。ブラウザは開きっぱなしなので、これが変わったらページを読み込み直させる
+# （11/8：画面の作りを変えても、古いページのままで新しい表示が出なかった）
+SERVER_ID = datetime.now().isoformat(timespec="seconds")
+
 
 def _letter_json(row):
     if row is None:
@@ -106,6 +110,7 @@ def build_state(conn, now=None):
         "notice": notice,
         # 再生中は再生を優先する（送ったあとすぐ受話器を取り直した場合）
         "sent": sent if playing_id is None else None,
+        "server": SERVER_ID,
     }
 
 

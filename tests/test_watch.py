@@ -141,3 +141,9 @@ class PipelineSummaryTest(TempDataTestCase):
             result = pipeline.handle_recording(wav, out)
         self.assertEqual((result.status, result.summary), ("sent", "膝が痛いそうです"))
         self.assertIsInstance(result, pipeline.Result)
+
+
+class ServerIdTest(TempDataTestCase):
+    def test_state_has_server_id(self):
+        """ブラウザが「本番が起動し直した」と気づいて、ページを読み込み直すための印。"""
+        self.assertEqual(display.build_state(self.conn, at("07T10:00"))["server"], display.SERVER_ID)

@@ -154,10 +154,18 @@
     $("#sent").classList.toggle("on", !!s.sent);
   }
 
+  let server = null;  // 本番が起動し直したら、ページごと読み込み直す（画面の作りが変わっていることがあるため）
+
   async function tick() {
     try {
       const res = await fetch("/api/state", { cache: "no-store" });
-      render(await res.json());
+      const s = await res.json();
+      if (server && s.server && s.server !== server) {
+        location.reload();
+        return;
+      }
+      server = s.server || server;
+      render(s);
       $("#offline").style.display = "none";
     } catch (e) {
       $("#offline").style.display = "block";
