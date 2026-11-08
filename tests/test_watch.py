@@ -143,6 +143,45 @@ class PipelineSummaryTest(TempDataTestCase):
         self.assertIsInstance(result, pipeline.Result)
 
 
+class ChatTest(TempDataTestCase):
+    """モニターの LINE のような画面：親の言葉と家族のお便りを、時刻の順に並べる。"""
+
+    def setUp(self):
+        super().setUp()
+        self.out = outbox.connect()
+        self.addCleanup(self.out.close)
+
+    def _job(self, created, text, status="sent", urgency="low"):
+        self.out.execute(
+            "INSERT INTO jobs (created_at, transcript, urgency, retry_key, status) VALUES (?, ?, ?, ?, ?)",
+            (created, text, urgency, f"k-{created}", status),
+        )
+        self.out.commit()
+
+    def test_merged_in_time_order(self):
+        self._job("2026-11-07T09:00:00", "年末はいつ帰るの？")
+        played = letter(self.conn, "29日に帰るよ", now=at("07T10:00"))
+        inbox.mark_played(self.conn, played, now=at("07T11:00"))
+        self._job("2026-11-07T12:00:00", "転んで腰を打った", status="ready", urgency="high")
+
+        chat = display.build_state(self.conn, at("07T13:00"), out=self.out)["chat"]
+        self.assertEqual([m["from"] for m in chat], ["parent", "family", "parent"])
+        self.assertEqual(chat[1]["sender"], "たつや")
+        self.assertEqual((chat[2]["urgent"], chat[2]["pending"]), (True, True))
+        self.assertEqual((chat[0]["urgent"], chat[0]["pending"]), (False, False))
+
+    def test_unplayed_letter_not_shown(self):
+        """まだ聞いていないお便りは、先に画面に出さない（留守番電話の方式）。"""
+        letter(self.conn, "元気？", now=at("07T10:00"))
+        self.assertEqual(display.build_state(self.conn, at("07T10:05"), out=self.out)["chat"], [])
+
+    def test_limit_keeps_newest(self):
+        for i in range(12):
+            self._job(f"2026-11-07T09:{i:02d}:00", f"話{i}")
+        chat = display.build_chat(self.conn, self.out, limit=8)
+        self.assertEqual([m["text"] for m in chat], [f"話{i}" for i in range(4, 12)])
+
+
 class ServerIdTest(TempDataTestCase):
     def test_state_has_server_id(self):
         """ブラウザが「本番が起動し直した」と気づいて、ページを読み込み直すための印。"""

@@ -3,7 +3,8 @@
 画面の3つの状態
 - new（新着あり）：「お便りが〇件あります（誰から）」「受話器を取ってください」だけを大きく。本文は出さない
 - playing（再生中）：誰から・いつ・本文を大きく、写真があれば大きく
-- idle（ふだん）：時計と、最後に再生したお便り、その前の数件を小さく
+- idle（ふだん）：時計と、LINE のトークのようなやり取り（11/8 変更）。
+  親が送った言葉は右の緑の吹き出し、家族のお便り（再生済みだけ）は左の白い吹き出しで、時刻の順に並べる
 
 夜（22〜7時）で新着がないときは、画面を暗くする（U26 の仮決め。実機で焼き付きを見て決め直す）。
 このサーバーは 127.0.0.1 だけで待つ。受け口のトンネル（8000番）とは別のポートにして、外に出さない。
@@ -16,7 +17,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from app import clock, config, db as koe_db, inbox
+from app import clock, config, db as koe_db, inbox, outbox
 
 log = logging.getLogger(__name__)
 
@@ -82,8 +83,55 @@ def _letter_json(row):
     }
 
 
-def build_state(conn, now=None):
+CHAT_LIMIT = 8  # 画面に並べる吹き出しの数（古いものは上に押し出される）
+
+
+def _when(iso):
+    t = datetime.fromisoformat(iso)
+    return f"{t.month}/{t.day} {clock.hm(t)}"
+
+
+def build_chat(conn, out, limit=CHAT_LIMIT):
+    """LINE のトークのように、親と家族のやり取りを古い順に並べる。
+
+    家族のお便りは再生したものだけ（まだ聞いていないものを先に見せない＝留守番電話の方式を崩さない）。
+    親の言葉は、話したそのままの文字（LINE にも同じ文が載る）。送れていないものには印をつける。
+    """
+    items = []
+    for r in conn.execute(
+        "SELECT * FROM letters WHERE status = 'played' ORDER BY received_at DESC, id DESC LIMIT ?", (limit,)
+    ):
+        items.append({
+            "from": "family",
+            "ts": r["received_at"],
+            "when": _when(r["received_at"]),
+            "sender": r["sender_name"] or inbox.DEFAULT_SENDER,
+            "text": r["display"] or r["spoken"] or "",
+            "photo": f"/photo/{r['id']}" if r["image_path"] else None,
+        })
+    for r in out.execute("SELECT * FROM jobs ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)):
+        items.append({
+            "from": "parent",
+            "ts": r["created_at"],
+            "when": _when(r["created_at"]),
+            "text": r["transcript"],
+            "urgent": r["urgency"] == "high",
+            "pending": r["status"] != "sent",
+        })
+    items.sort(key=lambda x: x["ts"])
+    return items[-limit:]
+
+
+def build_state(conn, now=None, out=None):
     now = now or datetime.now()
+    own_out = out is None
+    if own_out:
+        out = outbox.connect()
+    try:
+        chat = build_chat(conn, out)
+    finally:
+        if own_out:
+            out.close()
     playing_id, notice, sent = STATE.snapshot()
     waiting = inbox.unplayed(conn)
     senders = []
@@ -107,6 +155,7 @@ def build_state(conn, now=None):
         "waiting": {"count": len(waiting), "senders": senders},
         "playing": _letter_json(inbox.get(conn, playing_id)) if playing_id is not None else None,
         "recent": recent,
+        "chat": chat,
         "notice": notice,
         # 再生中は再生を優先する（送ったあとすぐ受話器を取り直した場合）
         "sent": sent if playing_id is None else None,

@@ -25,18 +25,42 @@
   .screen { display: none; height: 100vh; padding: 4vh 5vw; flex-direction: column; }
   .screen.on { display: flex; }
 
-  /* ふだん */
-  #idle .clock { text-align: center; margin-top: 2vh; }
-  #idle .date { font-size: 5vh; color: var(--sub); }
-  #idle .time { font-size: 16vh; font-weight: bold; letter-spacing: 0.05em; line-height: 1.1; }
-  #idle .label { font-size: 3.4vh; color: var(--sub); margin: 3vh 0 1.5vh; border-bottom: 2px solid var(--line); padding-bottom: 0.8vh; }
-  #idle .recent { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1.6vh; }
-  #idle .item { display: flex; gap: 2vw; align-items: center; background: var(--card); border-radius: 1.5vh; padding: 1.6vh 2vw; }
-  #idle .item img { height: 11vh; width: 11vh; object-fit: cover; border-radius: 1vh; }
-  #idle .item .who { font-size: 3vh; color: var(--sub); }
-  #idle .item .txt { font-size: 3.8vh; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  #idle .item:first-child .txt { font-size: 4.6vh; }
-  #idle .empty { font-size: 4vh; color: var(--sub); text-align: center; margin-top: 6vh; }
+  /* ふだん：LINE のトークのような画面（11/8） */
+  #idle { padding: 0; }
+  #idle .bar {
+    display: flex; align-items: baseline; justify-content: space-between;
+    background: #2f3e57; color: #fff; padding: 1.6vh 4vw;
+  }
+  #idle .bar .room { font-size: 4.2vh; font-weight: bold; }
+  #idle .bar .date { font-size: 3.6vh; opacity: 0.85; margin-left: auto; margin-right: 2vw; }
+  #idle .bar .time { font-size: 6vh; font-weight: bold; letter-spacing: 0.04em; }
+  #idle .chat {
+    flex: 1; min-height: 0; overflow: hidden; background: #8cabd8;
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 2.2vh; padding: 2.5vh 3vw;
+  }
+  #idle .msg { display: flex; align-items: flex-end; gap: 1.2vw; max-width: 100%; }
+  #idle .msg.parent { flex-direction: row-reverse; }
+  #idle .avatar {
+    flex: none; width: 8vh; height: 8vh; border-radius: 50%; background: #fff; color: #2f3e57;
+    display: flex; align-items: center; justify-content: center; font-size: 4vh; font-weight: bold;
+    align-self: flex-start;
+  }
+  #idle .col { display: flex; flex-direction: column; gap: 0.6vh; max-width: 70%; }
+  #idle .msg.parent .col { align-items: flex-end; }
+  #idle .name { font-size: 2.8vh; color: #1f2a3d; }
+  #idle .bubble {
+    font-size: 4.4vh; line-height: 1.45; padding: 1.6vh 2.2vw; border-radius: 3vh;
+    background: #fff; color: #111; white-space: pre-wrap; word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  #idle .msg.parent .bubble { background: #8de055; }
+  #idle .bubble.urgent { box-shadow: 0 0 0 0.6vh #d93025; }
+  #idle .photo { max-height: 24vh; max-width: 100%; border-radius: 2vh; object-fit: cover; }
+  #idle .meta { flex: none; font-size: 2.4vh; color: #1f2a3d; text-align: right; line-height: 1.3; }
+  #idle .msg.family .meta { text-align: left; }
+  #idle .meta .tag { display: block; font-weight: bold; }
+  #idle .meta .tag.red { color: #b3121f; }
+  #idle .empty { font-size: 4vh; color: #fff; text-align: center; margin: auto; }
 
   /* 新着 */
   #new { justify-content: center; align-items: center; text-align: center; background: #fff3d6; }
@@ -76,8 +100,8 @@
 
   /* 夜は暗く（U26 仮） */
   body.night { background: #000; color: #555; }
-  body.night #idle .date, body.night #idle .label, body.night #idle .recent { display: none; }
-  body.night #idle .clock { margin-top: 30vh; }
+  body.night #idle .chat, body.night #idle .room, body.night #idle .date { display: none; }
+  body.night #idle .bar { background: #000; justify-content: center; margin-top: 40vh; }
   body.night #idle .time { font-size: 10vh; color: #333; }
 
   #offline { position: fixed; top: 1vh; right: 1vw; font-size: 2.2vh; color: var(--sub); display: none; }
@@ -85,9 +109,8 @@
 </head>
 <body>
   <section id="idle" class="screen on">
-    <div class="clock"><div class="date"></div><div class="time"></div></div>
-    <div class="label">これまでのお便り</div>
-    <div class="recent"></div>
+    <div class="bar"><div class="room">家族の LINE</div><div class="date"></div><div class="time"></div></div>
+    <div class="chat"></div>
   </section>
 
   <section id="new" class="screen">
@@ -124,12 +147,33 @@
     $("#idle .time").textContent = s.clock.time;
 
     if (s.mode === "idle") {
-      const list = s.recent.map((r) => `
-        <div class="item">
-          ${r.photo ? `<img src="${esc(r.photo)}" alt="">` : ""}
-          <div><div class="who">${esc(r.sender)}さん・${esc(r.when)}</div><div class="txt">${esc(r.text)}</div></div>
-        </div>`).join("");
-      $("#idle .recent").innerHTML = list || '<div class="empty">まだお便りはありません</div>';
+      const chat = s.chat || [];
+      const html = chat.map((m) => {
+        if (m.from === "parent") {
+          const tags = (m.urgent ? '<span class="tag red">🚨至急</span>' : "")
+                     + (m.pending ? '<span class="tag">送信待ち</span>' : "");
+          return `
+          <div class="msg parent">
+            <div class="col"><div class="bubble${m.urgent ? " urgent" : ""}">${esc(m.text)}</div></div>
+            <div class="meta">${tags}${esc(m.when)}</div>
+          </div>`;
+        }
+        const body = m.photo
+          ? `<img class="photo" src="${esc(m.photo)}" alt="">${m.text ? `<div class="bubble">${esc(m.text)}</div>` : ""}`
+          : `<div class="bubble">${esc(m.text)}</div>`;
+        return `
+          <div class="msg family">
+            <div class="avatar">${esc((m.sender || "?").slice(0, 1))}</div>
+            <div class="col"><div class="name">${esc(m.sender)}さん</div>${body}</div>
+            <div class="meta">${esc(m.when)}</div>
+          </div>`;
+      }).join("");
+      const box = $("#idle .chat");
+      const next = html || '<div class="empty">受話器を取って、話しかけてみてください</div>';
+      if (box.dataset.html !== next) {  // 毎秒書き換えると写真がちらつくので、変わったときだけ
+        box.innerHTML = next;
+        box.dataset.html = next;
+      }
     }
 
     if (s.mode === "new") {
