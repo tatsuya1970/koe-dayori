@@ -24,6 +24,9 @@ xset -dpms 2>/dev/null
 # --kiosk だと全画面から抜けられず、開発中にほかの Pi の操作ができなかった。
 # 今は起動時は全画面のまま、F11 で普通の窓に戻せる（右上に最小化ボタンが出る）。もう一度 F11 で全画面。
 # 製品版（親の家に置くとき）は --kiosk に戻す。
+#
+# --lang=ja --disable-features=Translate：Pi の言語が英語なので、日本語のページに翻訳の案内が出て
+# 右上の時計を隠していた（11/8）。日本語のページとして扱わせ、翻訳も切る
 exec chromium --app="$URL" --start-fullscreen --noerrdialogs --disable-infobars --incognito \
   --disable-session-crashed-bubble --check-for-update-interval=31536000 \
-  --password-store=basic
+  --password-store=basic --lang=ja --disable-features=Translate
