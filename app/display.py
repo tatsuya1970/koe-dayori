@@ -78,7 +78,8 @@ def _letter_json(row):
         "sender": row["sender_name"] or inbox.DEFAULT_SENDER,
         "when": f"{received.month}月{received.day}日 {clock.hm(received)}",
         "kind": row["kind"],
-        "text": row["display"] or row["spoken"] or "",
+        # 写真には説明文を出さない（11/8。写真を見ればわかる。受話器では読み上げる）
+        "text": "" if row["image_path"] else (row["display"] or row["spoken"] or ""),
         "photo": f"/photo/{row['id']}" if row["image_path"] else None,
     }
 
@@ -106,7 +107,7 @@ def build_chat(conn, out, limit=CHAT_LIMIT):
             "ts": r["received_at"],
             "when": _when(r["received_at"]),
             "sender": r["sender_name"] or inbox.DEFAULT_SENDER,
-            "text": r["display"] or r["spoken"] or "",
+            "text": "" if r["image_path"] else (r["display"] or r["spoken"] or ""),
             "photo": f"/photo/{r['id']}" if r["image_path"] else None,
         })
     for r in out.execute("SELECT * FROM jobs ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)):

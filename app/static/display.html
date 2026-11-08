@@ -76,7 +76,10 @@
   #playing .body { flex: 1; display: flex; gap: 4vw; align-items: center; margin-top: 3vh; min-height: 0; }
   #playing .body img { max-height: 100%; max-width: 55%; object-fit: contain; border-radius: 2vh; }
   #playing .text { font-size: 7vh; line-height: 1.55; white-space: pre-wrap; overflow: hidden; }
-  #playing.photo .text { font-size: 5.5vh; }
+  /* 写真のお便りは説明文を出さず、写真を画面いっぱいに（11/8） */
+  #playing.photo .text { display: none; }
+  #playing.photo .body { justify-content: center; }
+  #playing.photo .body img { max-width: 100%; }
 
   /* ひとこと（送りました など） */
   #notice {
