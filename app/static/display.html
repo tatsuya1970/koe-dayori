@@ -55,7 +55,8 @@
   }
   #idle .msg.parent .bubble { background: #8de055; }
   #idle .bubble.urgent { box-shadow: 0 0 0 0.6vh #d93025; }
-  #idle .photo { max-height: 24vh; max-width: 100%; border-radius: 2vh; object-fit: cover; }
+  /* 写真は切り取らない（11/8）。列の幅に引き伸ばされて cover で端が切れていたので、元の縦横比のまま収める */
+  #idle .photo { align-self: flex-start; width: auto; height: auto; max-height: 24vh; max-width: 100%; border-radius: 2vh; object-fit: contain; }
   #idle .meta { flex: none; font-size: 2.4vh; color: #1f2a3d; text-align: right; line-height: 1.3; }
   #idle .msg.family .meta { text-align: left; }
   #idle .meta .tag { display: block; font-weight: bold; }
