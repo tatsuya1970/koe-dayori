@@ -194,6 +194,12 @@
 - やり方：SORACOM の `setup_eg25.sh` で NetworkManager の接続 `soracom`（APN `soracom.io`）を作る。**そのままだと Wi-Fi が優先され、ドングルは SORACOM のサービス向けにしか使われない**ので、`soracom` の route-metric を 50 にして Wi-Fi（600）より優先する。アプリのコードは変えない（「通信は NetworkManager 任せ」のまま）
 - 手順は `deploy/soracom-lte.sh` にまとめた。Pi で `bash deploy/soracom-lte.sh` を実行する（plan-DU の SIM なら引数に `du.soracom.io`）
 - 注意：LTE は使った量だけ料金がかかる。写真のお便りのダウンロードや apt の更新もドングル経由になる
+- **つまずいたこと（同日）**
+  - Pi に ModemManager が入っておらず、ドングルを使えなかった（`setup_eg25.sh` は入れない）。スクリプトで先に入れるようにした
+  - **Wi-Fi を切ると、LTE がつながっていてもどこにも届かなかった**。SORACOM の DNS（`100.127.0.53`）が Tailscale の範囲（100.64.0.0/10）と重なり、Tailscale が返事を捨てていた。LTE の DNS を `8.8.8.8`・`1.1.1.1` にして直した。`pong.soracom.io` や SORACOM の `100.127.x.x` のサービス（Harvest など）も同じ理由で届かないので、使うときは Tailscale との共存を考える
+  - 受話器を置いたあとの送信と定期の送り直しが同じ1件を同時に進め、Claude を2回呼んでいた。1つずつ順に進め、送り直しは一度失敗したものだけにした。送り直せたときは「送りました」と知らせる
+  - 再起動のあと、Wi-Fi がつながるまで約6分かかった（原因は未調査。LTE は約20秒でつながる）
+- **Wi-Fi を切って LTE だけで、話して送る・LINE の返信を受けて再生する、が動くことを確認した**（2026-11-20 21:32）
 
 ## 応募内容（原文）
 
