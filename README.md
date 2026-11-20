@@ -188,6 +188,13 @@
 - **期限**：2026 年 12 月中に作り終える
 - 残る心配：この使い方が LINE の規約で認められるか（調べた内容は手元の製品化のメモに記録）
 
+## 決定：SORACOM Onyx が挿さっている間は LTE で通信する（2026-11-20、本人指示）
+
+- Pi に **SORACOM Onyx（Quectel EG25-G）** を挿した。ドングルがつながっている間は、ふつうの通信（Claude API・LINE・Cloudflare Tunnel・Tailscale）もすべて SORACOM を通す。抜けば自動で Wi-Fi に戻る
+- やり方：SORACOM の `setup_eg25.sh` で NetworkManager の接続 `soracom`（APN `soracom.io`）を作る。**そのままだと Wi-Fi が優先され、ドングルは SORACOM のサービス向けにしか使われない**ので、`soracom` の route-metric を 50 にして Wi-Fi（600）より優先する。アプリのコードは変えない（「通信は NetworkManager 任せ」のまま）
+- 手順は `deploy/soracom-lte.sh` にまとめた。Pi で `bash deploy/soracom-lte.sh` を実行する（plan-DU の SIM なら引数に `du.soracom.io`）
+- 注意：LTE は使った量だけ料金がかかる。写真のお便りのダウンロードや apt の更新もドングル経由になる
+
 ## 応募内容（原文）
 
 スマホを持たない高齢の親との連絡兼見守りガジェットを作ります。
