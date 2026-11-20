@@ -87,13 +87,19 @@
   }
   #notice.on { display: block; }
 
-  /* 送ったあと：「送りました」だけを大きく（10秒） */
+  /* 送ったあと：「送りました」と、話した言葉（文字起こし）を大きく（10秒）。LINE に送った要約は出さない */
   #sent {
     position: fixed; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center;
     padding: 6vh 7vw; background: #e8f3e6; color: var(--ink);
   }
   #sent.on { display: flex; }
-  #sent .title { font-size: 14vh; font-weight: bold; color: #2f6b2a; }
+  #sent .title { font-size: 12vh; font-weight: bold; color: #2f6b2a; }
+  #sent .said {
+    margin-top: 4vh; max-width: 100%; font-size: 6vh; line-height: 1.5; white-space: pre-wrap;
+    background: var(--card); border-radius: 2vh; padding: 3vh 4vw;
+    display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  #sent .said:empty { display: none; }
 
   /* 夜は暗く（U26 仮） */
   body.night { background: #000; color: #555; }
@@ -123,6 +129,7 @@
 
   <section id="sent">
     <div class="title">✓ 送りました</div>
+    <div class="said"></div>
   </section>
 
   <div id="notice"></div>
@@ -189,6 +196,7 @@
     show(s.mode);
     $("#notice").textContent = s.notice || "";
     $("#notice").classList.toggle("on", !!s.notice);
+    $("#sent .said").textContent = typeof s.sent === "string" ? s.sent : "";
     $("#sent").classList.toggle("on", !!s.sent);
   }
 

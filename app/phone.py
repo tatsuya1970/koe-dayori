@@ -144,9 +144,9 @@ class Phone:
                 words = RESULT_WORDS.get(result.status)
                 if words:
                     if self.display:
-                        summary = getattr(result, "summary", None)
-                        if result.status == "sent" and summary:
-                            self.display.show_sent(summary)  # 「送りました」と、LINE に送った要約
+                        if result.status == "sent":
+                            said = getattr(getattr(result, "transcript", None), "text", "")
+                            self.display.show_sent(said)  # 「送りました」と、話した言葉
                         else:
                             self.display.show_notice(words)
                     self.audio.say_speaker(words)

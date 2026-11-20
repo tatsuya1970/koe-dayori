@@ -150,3 +150,23 @@ class RetryOnlyFlushTest(TempDataTestCase):
         with mock.patch.object(agents, "analyze", return_value=("あいさつ", Urgency("low", ""))), \
              mock.patch("app.line_client.push_text"):
             self.assertEqual(outbox.flush(out, retry_only=True), (1, 0))
+
+
+class RecentSentTest(TempDataTestCase):
+    def test_returns_latest_in_order(self):
+        from app import outbox
+        out = outbox.connect()
+        self.addCleanup(out.close)
+        for i, text in enumerate(["一つ目", "二つ目", "三つ目"]):
+            job = outbox.add(out, text)
+            out.execute("UPDATE jobs SET status = 'sent', sent_at = ? WHERE id = ?", (f"2026-11-20T21:0{i}:00", job))
+        out.commit()
+        self.assertEqual(outbox.recent_sent_transcripts(out, 2), ["二つ目", "三つ目"])
+
+    def test_resent_shows_what_was_said(self):
+        from app import display
+        from app.main import Housekeeper
+        keeper = Housekeeper(mock.Mock())
+        with mock.patch.object(display.STATE, "show_sent") as show:
+            keeper.on_resent(1, datetime(2026, 11, 20, 20, 53), ["もしもし、こんばんは"])
+        show.assert_called_once_with("もしもし、こんばんは")

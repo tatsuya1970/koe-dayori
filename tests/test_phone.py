@@ -184,7 +184,7 @@ class HandsetTroubleTest(TempDataTestCase):
 
 
 class SentDisplayTest(TempDataTestCase):
-    """送ったあと、LINE に送った要約をモニターに出す（11/8 追加）。"""
+    """送ったあと、「送りました」と話した言葉をモニターに出す（11/20 変更。LINE に送った要約は出さない）。"""
 
     def run_with(self, result):
         from app.display import State
@@ -197,10 +197,17 @@ class SentDisplayTest(TempDataTestCase):
         phone.wait_idle(2)
         return state.snapshot()
 
-    def test_sent_shows_summary(self):
-        _, notice, sent = self.run_with(pipeline.Result("sent", summary="膝が痛いそうです。病院の予約を頼みたいとのこと"))
-        self.assertEqual(sent, "膝が痛いそうです。病院の予約を頼みたいとのこと")
+    def test_sent_shows_what_was_said(self):
+        from app import stt
+        said = stt.Transcript(text="膝が痛いけん、病院の予約をしてほしいんよ", duration=5, speech_seconds=4,
+                              unclear=False, elapsed=1)
+        _, notice, sent = self.run_with(pipeline.Result("sent", said, summary="膝が痛いそうです"))
+        self.assertEqual(sent, "膝が痛いけん、病院の予約をしてほしいんよ")
         self.assertIsNone(notice)
+
+    def test_sent_without_transcript_shows_title_only(self):
+        _, _, sent = self.run_with(pipeline.Result("sent"))
+        self.assertIs(sent, True)  # 「送りました」だけ
 
     def test_queued_shows_notice_only(self):
         _, notice, sent = self.run_with(pipeline.Result("queued"))

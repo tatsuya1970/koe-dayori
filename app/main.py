@@ -59,7 +59,7 @@ class Housekeeper:
             # （受話器を置いたときに「送れませんでした。あとでもう一度送ります」と聞いているので）
             sent, _ = outbox.flush(out, dry_run=config.DRY_RUN, retry_only=True)
             if sent and not config.DRY_RUN:
-                self.on_resent(sent, now)
+                self.on_resent(sent, now, outbox.recent_sent_transcripts(out, sent))
 
             # 家族からのお便り：言い換え・写真の説明をして、未再生にする
             inbox.prepare(conn, on_ready=self.on_new_letter)
@@ -98,9 +98,9 @@ class Housekeeper:
             conn.close()
             out.close()
 
-    def on_resent(self, count, now):
+    def on_resent(self, count, now, said=()):
         log.info("貯めていた %d 件を送りました", count)
-        display.STATE.show_sent(True)  # モニターに「✓ 送りました」
+        display.STATE.show_sent("\n".join(said))  # モニターに「✓ 送りました」と、話した言葉
         if clock.is_daytime(now):  # 夜は声を出さない（チャイムと同じ）
             self.audio.say_speaker(RESENT_WORDS)
 

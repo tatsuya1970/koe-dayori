@@ -35,10 +35,13 @@ class State:
         self.sent = None
         self.sent_until = None
 
-    def show_sent(self, summary, seconds=10):
-        """親が話して送ったあと、LINE に送った要約を大きく出す（デモで何が届いたかを見せる）。"""
+    def show_sent(self, said, seconds=10):
+        """親が話して送ったあと、「送りました」と、話した言葉（文字起こし）を大きく出す。
+
+        said が空なら「送りました」だけ。LINE に送った要約は出さない（11/20 本人指示）。
+        """
         with self._lock:
-            self.sent = summary
+            self.sent = said or True
             self.sent_until = datetime.now().timestamp() + seconds
 
     def show_letter(self, letter_id):

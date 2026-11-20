@@ -68,6 +68,14 @@ _flush_lock = threading.Lock()
 RETRY_AFTER_SECONDS = 120
 
 
+def recent_sent_transcripts(db, count):
+    """いちばん新しく送れた count 件の、話した言葉（古い順）。送り直せたときにモニターに出す。"""
+    rows = db.execute(
+        "SELECT transcript FROM jobs WHERE status = 'sent' ORDER BY sent_at DESC, id DESC LIMIT ?", (count,)
+    ).fetchall()
+    return [r["transcript"] for r in reversed(rows)]
+
+
 def flush(db, dry_run=False, retry_only=False):
     """貯まっているものを古い順に進める。送れた件数と、残った件数を返す。
 
