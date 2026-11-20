@@ -77,3 +77,40 @@ class SttModelTest(TempDataTestCase):
             self.assertEqual(stt._get_model(), "m")
         self.assertEqual(model.call_count, 2)
         self.assertNotIn("local_files_only", model.call_args.kwargs)
+
+
+class ResentTest(TempDataTestCase):
+    """貯めていた分をあとから送れたら「送りました」と知らせる（夜は声を出さない）。"""
+
+    def _keeper(self):
+        from app.main import Housekeeper
+        audio = mock.Mock()
+        return Housekeeper(audio), audio
+
+    def test_says_sent_in_daytime(self):
+        from app import display
+        keeper, audio = self._keeper()
+        with mock.patch.object(display.STATE, "show_sent") as show:
+            keeper.on_resent(1, datetime(2026, 11, 20, 20, 53))
+        show.assert_called_once()
+        audio.say_speaker.assert_called_once_with("送りました")
+
+    def test_silent_at_night(self):
+        from app import display
+        keeper, audio = self._keeper()
+        with mock.patch.object(display.STATE, "show_sent") as show:
+            keeper.on_resent(1, datetime(2026, 11, 20, 23, 30))
+        show.assert_called_once()
+        audio.say_speaker.assert_not_called()
+
+    def test_run_once_announces_only_when_sent(self):
+        from app import main
+        keeper, _ = self._keeper()
+        for sent, expected in ((0, 0), (2, 1)):
+            with mock.patch.object(main.outbox, "flush", return_value=(sent, 0)), \
+                 mock.patch.object(main.tunnel, "sync_webhook"), \
+                 mock.patch.object(main.notify, "flush"), \
+                 mock.patch.object(main.daily, "due", return_value=False), \
+                 mock.patch.object(keeper, "on_resent") as on_resent:
+                keeper.run_once(datetime(2026, 11, 20, 20, 53))
+            self.assertEqual(on_resent.call_count, expected)

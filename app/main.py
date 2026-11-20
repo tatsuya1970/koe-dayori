@@ -22,6 +22,7 @@ from app import clock, config, daily, db as koe_db, display, inbox, notify, outb
 log = logging.getLogger("koe")
 
 INTERVAL_SECONDS = 30
+RESENT_WORDS = "送りました"  # 貯めていた分を、あとから送れたとき（phone.RESULT_WORDS["sent"] と同じ言葉）
 
 
 class Housekeeper:
@@ -54,8 +55,11 @@ class Housekeeper:
         conn = koe_db.connect()
         out = outbox.connect()
         try:
-            # 親の声：通信が切れていた分を送り直す
-            outbox.flush(out, dry_run=config.DRY_RUN)
+            # 親の声：通信が切れていた分を送り直す。送れたら「送りました」と知らせる
+            # （受話器を置いたときに「送れませんでした。あとでもう一度送ります」と聞いているので）
+            sent, _ = outbox.flush(out, dry_run=config.DRY_RUN)
+            if sent and not config.DRY_RUN:
+                self.on_resent(sent, now)
 
             # 家族からのお便り：言い換え・写真の説明をして、未再生にする
             inbox.prepare(conn, on_ready=self.on_new_letter)
@@ -93,6 +97,12 @@ class Housekeeper:
         finally:
             conn.close()
             out.close()
+
+    def on_resent(self, count, now):
+        log.info("貯めていた %d 件を送りました", count)
+        display.STATE.show_sent(True)  # モニターに「✓ 送りました」
+        if clock.is_daytime(now):  # 夜は声を出さない（チャイムと同じ）
+            self.audio.say_speaker(RESENT_WORDS)
 
     def on_new_letter(self, letter):
         log.info("お便りの準備ができました（%sさんから）", letter["sender_name"])
