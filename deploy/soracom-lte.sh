@@ -10,6 +10,17 @@
 # 手順の元: https://users.soracom.io/ja-jp/guides/usb-dongles/soracom-onyx/raspberrypi/
 set -e
 
+# 0. ModemManager を入れる（Raspberry Pi OS には入っておらず、setup_eg25.sh も入れない。
+#    ないと NetworkManager がドングルを使えず "No suitable device found" になる。2026-11-20 に確認）
+sudo apt-get install -y modemmanager
+sudo systemctl enable --now ModemManager
+echo "ドングルを認識するまで待ちます..."
+for n in $(seq 1 30); do
+  if mmcli -L | grep -q QUECTEL; then break; fi
+  sleep 2
+done
+mmcli -L
+
 # 1. SORACOM の設定スクリプトで、接続 "soracom"（APN soracom.io / sora / sora）を作る
 cd /tmp
 curl -fsSO https://soracom-files.s3.amazonaws.com/connect/setup_eg25.sh
