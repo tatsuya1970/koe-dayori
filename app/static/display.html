@@ -87,18 +87,13 @@
   }
   #notice.on { display: block; }
 
-  /* 送ったあと：LINE に送った要約を大きく（10秒） */
+  /* 送ったあと：「送りました」だけを大きく（10秒） */
   #sent {
-    position: fixed; inset: 0; display: none; flex-direction: column; justify-content: center;
+    position: fixed; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center;
     padding: 6vh 7vw; background: #e8f3e6; color: var(--ink);
   }
   #sent.on { display: flex; }
-  #sent .title { font-size: 9vh; font-weight: bold; color: #2f6b2a; }
-  #sent .label { font-size: 3.6vh; color: var(--sub); margin: 3vh 0 1.5vh; }
-  #sent .summary {
-    font-size: 6vh; line-height: 1.5; white-space: pre-wrap; background: var(--card);
-    border-radius: 2vh; padding: 3vh 3vw; border-left: 1.2vh solid #2f6b2a;
-  }
+  #sent .title { font-size: 14vh; font-weight: bold; color: #2f6b2a; }
 
   /* 夜は暗く（U26 仮） */
   body.night { background: #000; color: #555; }
@@ -128,8 +123,6 @@
 
   <section id="sent">
     <div class="title">✓ 送りました</div>
-    <div class="label">ご家族の LINE に、こう届きました</div>
-    <div class="summary"></div>
   </section>
 
   <div id="notice"></div>
@@ -196,7 +189,6 @@
     show(s.mode);
     $("#notice").textContent = s.notice || "";
     $("#notice").classList.toggle("on", !!s.notice);
-    $("#sent .summary").textContent = s.sent || "";
     $("#sent").classList.toggle("on", !!s.sent);
   }
 
