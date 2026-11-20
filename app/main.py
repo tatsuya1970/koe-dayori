@@ -57,7 +57,7 @@ class Housekeeper:
         try:
             # 親の声：通信が切れていた分を送り直す。送れたら「送りました」と知らせる
             # （受話器を置いたときに「送れませんでした。あとでもう一度送ります」と聞いているので）
-            sent, _ = outbox.flush(out, dry_run=config.DRY_RUN)
+            sent, _ = outbox.flush(out, dry_run=config.DRY_RUN, retry_only=True)
             if sent and not config.DRY_RUN:
                 self.on_resent(sent, now)
 

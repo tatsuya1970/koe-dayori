@@ -7,8 +7,9 @@
 
 import logging
 import sqlite3
+import threading
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app import agents, config, line_client
 from app.message import compose
@@ -59,13 +60,34 @@ def _fail(db, job_id, error):
     db.commit()
 
 
-def flush(db, dry_run=False):
+# 受話器を置いたあとの送信（送り係）と、定期の送り直し（Housekeeper）が同じ1件を同時に進めると、
+# Claude を2回呼び、「送りました」も2回流れた（2026-11-20）。1つずつ順に進める
+_flush_lock = threading.Lock()
+
+# 定期の送り直しが手を出すのは、一度失敗したものか、これより前に話したもの（送り係が落ちて残ったもの）
+RETRY_AFTER_SECONDS = 120
+
+
+def flush(db, dry_run=False, retry_only=False):
     """貯まっているものを古い順に進める。送れた件数と、残った件数を返す。
 
     dry_run のときは LINE に送らず、文面を表示するだけ。
+    retry_only のときは、送り直し（一度失敗した・しばらく前に話した）ものだけを進める。
+    話したばかりのものは、受話器を置いたあとの送信に任せる。
     """
+    with _flush_lock:
+        return _flush(db, dry_run, retry_only)
+
+
+def _flush(db, dry_run, retry_only):
     sent = 0
-    rows = db.execute("SELECT * FROM jobs WHERE status IN ('transcribed', 'ready') ORDER BY id").fetchall()
+    query = "SELECT * FROM jobs WHERE status IN ('transcribed', 'ready')"
+    params = ()
+    if retry_only:
+        cutoff = (datetime.now() - timedelta(seconds=RETRY_AFTER_SECONDS)).isoformat(timespec="seconds")
+        query += " AND (attempts > 0 OR created_at < ?)"
+        params = (cutoff,)
+    rows = db.execute(query + " ORDER BY id", params).fetchall()
     for row in rows:
         job_id = row["id"]
 

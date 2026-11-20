@@ -114,3 +114,39 @@ class ResentTest(TempDataTestCase):
                  mock.patch.object(keeper, "on_resent") as on_resent:
                 keeper.run_once(datetime(2026, 11, 20, 20, 53))
             self.assertEqual(on_resent.call_count, expected)
+
+
+class RetryOnlyFlushTest(TempDataTestCase):
+    """定期の送り直しは、話したばかりの1件に手を出さない（受話器を置いたあとの送信と重ならない）。"""
+
+    def test_fresh_job_is_left_to_sender(self):
+        from app import agents, outbox
+        from app.agents.urgency import Urgency
+
+        out = outbox.connect()
+        self.addCleanup(out.close)
+        outbox.add(out, "もしもし")  # いま話したばかり（失敗もしていない）
+        with mock.patch.object(agents, "analyze", return_value=("あいさつ", Urgency("low", ""))) as analyze, \
+             mock.patch("app.line_client.push_text") as push:
+            self.assertEqual(outbox.flush(out, retry_only=True), (0, 1))
+            analyze.assert_not_called()
+            push.assert_not_called()
+
+            # 一度失敗したものは、送り直しで送る
+            out.execute("UPDATE jobs SET attempts = 1")
+            out.commit()
+            self.assertEqual(outbox.flush(out, retry_only=True), (1, 0))
+            push.assert_called_once()
+
+    def test_old_job_is_retried(self):
+        from app import agents, outbox
+        from app.agents.urgency import Urgency
+
+        out = outbox.connect()
+        self.addCleanup(out.close)
+        outbox.add(out, "もしもし")
+        out.execute("UPDATE jobs SET created_at = '2026-11-20T20:00:00'")  # 送り係が落ちて残ったもの
+        out.commit()
+        with mock.patch.object(agents, "analyze", return_value=("あいさつ", Urgency("low", ""))), \
+             mock.patch("app.line_client.push_text"):
+            self.assertEqual(outbox.flush(out, retry_only=True), (1, 0))
