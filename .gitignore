@@ -37,3 +37,8 @@ photos/
 *.jpg
 *.jpeg
 *.png
+
+# Cloudflare Workers（relay/）
+node_modules/
+.wrangler/
+.dev.vars

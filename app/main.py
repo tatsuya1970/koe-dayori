@@ -5,7 +5,8 @@
 
 動かすもの
 - 受話器の流れ（phone）と、フックスイッチ（hook）
-- LINE の受け口（webhook, 127.0.0.1:8000 → Cloudflare Quick Tunnel。消えたら作り直す）
+- LINE の受け口：KOE_INBOX_MODE=tunnel なら webhook（127.0.0.1:8000 → Cloudflare Quick Tunnel。消えたら作り直す）、
+  relay なら Cloudflare Workers に貯まったものを取りに行く（relay、11/22 D29）
 - モニター表示（display, 127.0.0.1:8001 → Chromium のキオスクモード）
 - 人感センサー（sensor.Watcher）
 - 定期の仕事（Housekeeper）：再送、お便りの準備、新着のチャイム、「まだ聞いていません」、見守り、今日の様子、古い記録の削除
@@ -17,7 +18,7 @@ import signal
 import threading
 from datetime import datetime
 
-from app import clock, config, daily, db as koe_db, display, inbox, notify, outbox, pipeline, sensor, stt, tunnel, webhook
+from app import clock, config, daily, db as koe_db, display, inbox, notify, outbox, pipeline, relay, sensor, stt, tunnel, webhook
 
 log = logging.getLogger("koe")
 
@@ -28,8 +29,9 @@ RESENT_WORDS = "送りました"  # 貯めていた分を、あとから送れ�
 class Housekeeper:
     """定期の仕事。お便りが届いたときは wake() で、待たずにすぐ回す。"""
 
-    def __init__(self, audio):
+    def __init__(self, audio, relay_client=None):
         self.audio = audio
+        self.relay = relay_client  # KOE_INBOX_MODE=relay のときだけ（11/22 D29）
         self._wake = threading.Event()
         self._night_arrivals = False  # 夜に届いたお便りがある（朝7時にチャイムを鳴らす）
 
@@ -47,19 +49,28 @@ class Housekeeper:
 
     def run_once(self, now=None):
         now = now or datetime.now()
-        # LINE の受け口をトンネルの今の URL に合わせる（失敗しても、ほかの仕事は続ける）
-        try:
-            tunnel.sync_webhook()
-        except Exception as e:
-            log.warning("LINE の受け口を登録し直せません（次の回に再試行）: %s", e)
-        # 受け口が Cloudflare 側で消されたまま直らないときは、作り直す（11/22）
-        try:
-            tunnel.watch(now)
-        except Exception:
-            log.exception("LINE の受け口の見張りで止まりました（次の回に続けます）")
+        if self.relay is None:
+            # tunnel：LINE の受け口をトンネルの今の URL に合わせる（失敗しても、ほかの仕事は続ける）
+            # relay のときは呼ばない。呼ぶと LINE の Webhook URL が trycloudflare に書き戻される
+            try:
+                tunnel.sync_webhook()
+            except Exception as e:
+                log.warning("LINE の受け口を登録し直せません（次の回に再試行）: %s", e)
+            # 受け口が Cloudflare 側で消されたまま直らないときは、作り直す（11/22）
+            try:
+                tunnel.watch(now)
+            except Exception:
+                log.exception("LINE の受け口の見張りで止まりました（次の回に続けます）")
         conn = koe_db.connect()
         out = outbox.connect()
         try:
+            # relay：クラウドに貯まっているお便りを受け取る（届いた知らせが来たとき・切れているあいだは毎回）
+            if self.relay is not None:
+                try:
+                    self.relay.run_once(conn, now)
+                except Exception:
+                    log.exception("クラウドからの受け取りで止まりました（次の回に続けます）")
+
             # 親の声：通信が切れていた分を送り直す。送れたら「送りました」と知らせる
             # （受話器を置いたときに「送れませんでした。あとでもう一度送ります」と聞いているので）
             sent, _ = outbox.flush(out, dry_run=config.DRY_RUN, retry_only=True)
@@ -164,10 +175,17 @@ def main():
 
     stt.preload()  # 文字起こしのモデルを先に読んでおく（最初の1回目を待たせない）
     audio = Audio()
-    keeper = Housekeeper(audio)
+    relay_client = None
+    if config.INBOX_MODE == "relay":
+        relay_client = relay.Relay()
+    keeper = Housekeeper(audio, relay_client)
     phone = Phone(audio, send=make_send(), display_state=display.STATE, on_played=on_played)
 
-    webhook.start(on_received=keeper.wake)
+    webhook.start(on_received=keeper.wake)  # relay のときも、手元の試し（tools/fake_line_event.py）用に残す
+    if relay_client is not None:
+        relay_client.on_received = keeper.wake
+        relay_client.start()
+        log.info("LINE の受け口：クラウド（%s）から取りに行きます", config.RELAY_URL)
     display.start()
     threading.Thread(target=keeper.run_forever, name="housekeeper", daemon=True).start()
 

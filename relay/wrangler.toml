@@ -1,0 +1,30 @@
+# 声だより の LINE の受け口（Cloudflare Workers、11/22 D29）。使い方は relay/README.md
+#
+# 鍵・グループ ID はここに書かない（公開リポジトリ）。wrangler secret put で入れる：
+#   LINE_CHANNEL_SECRET        LINE の署名を確かめる
+#   LINE_CHANNEL_ACCESS_TOKEN  写真の中身を LINE から取り出す
+#   LINE_GROUP_ID              貯めるグループ（ほかは貯めずに 200）
+#   RELAY_TOKEN                Pi だけが使える合言葉（Pi の .env の KOE_RELAY_TOKEN と同じ）
+
+name = "koe-relay"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# 無料プランは SQLite の Durable Objects だけが使える
+[[durable_objects.bindings]]
+name = "INBOX"
+class_name = "Inbox"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Inbox"]
+
+[vars]
+# mention：公式アカウントにメンションした文だけ貯める（Pi の KOE_REPLY_FILTER と合わせる）/ all：グループの文を全部
+REPLY_FILTER = "mention"
+# Pi が受け取らないまま残ったお便りを消すまでの日数（U32）
+RETENTION_DAYS = "7"
+
+[observability]
+enabled = true

@@ -80,6 +80,11 @@ WEBHOOK_PORT = int(get("KOE_WEBHOOK_PORT", "8000"))  # Cloudflare Quick Tunnel �
 DISPLAY_PORT = int(get("KOE_DISPLAY_PORT", "8001"))  # モニター用。127.0.0.1 だけで待つ（外に出さない）
 # 11/7：受け口は Cloudflare Quick Tunnel。cloudflared の窓口から今の URL を聞いて LINE に登録する（app/tunnel.py）
 TUNNEL_METRICS_URL = get("KOE_TUNNEL_METRICS_URL", "http://127.0.0.1:20241")
+# 11/22 D29：受け口の方式。tunnel＝今の Quick Tunnel / relay＝Cloudflare Workers に貯めたものを Pi が取りに行く（app/relay.py）
+INBOX_MODE = get("KOE_INBOX_MODE", "tunnel")
+RELAY_URL = get("KOE_RELAY_URL", "").rstrip("/")  # 例：https://koe-relay.〇〇.workers.dev
+RELAY_TOKEN = get("KOE_RELAY_TOKEN", "")  # Pi だけが使える合言葉。Workers の secret RELAY_TOKEN と同じもの
+RELAY_PING_SECONDS = int(get("KOE_RELAY_PING_SECONDS", "45"))  # WebSocket をつなぎ続けるための ping の間隔
 # U24 仮決め：mention＝公式アカウントにメンションした文だけ読む / all＝グループの文を全部読む。写真はどちらでも受ける
 REPLY_FILTER = get("KOE_REPLY_FILTER", "mention")
 SENDER_NAMES = _names(get("KOE_SENDER_NAMES", ""))  # 例：Tatsuya T=たつや
