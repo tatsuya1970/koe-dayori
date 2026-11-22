@@ -5,7 +5,7 @@
 
 動かすもの
 - 受話器の流れ（phone）と、フックスイッチ（hook）
-- LINE の受け口（webhook, 127.0.0.1:8000 → Tailscale Funnel）
+- LINE の受け口（webhook, 127.0.0.1:8000 → Cloudflare Quick Tunnel。消えたら作り直す）
 - モニター表示（display, 127.0.0.1:8001 → Chromium のキオスクモード）
 - 人感センサー（sensor.Watcher）
 - 定期の仕事（Housekeeper）：再送、お便りの準備、新着のチャイム、「まだ聞いていません」、見守り、今日の様子、古い記録の削除
@@ -52,6 +52,11 @@ class Housekeeper:
             tunnel.sync_webhook()
         except Exception as e:
             log.warning("LINE の受け口を登録し直せません（次の回に再試行）: %s", e)
+        # 受け口が Cloudflare 側で消されたまま直らないときは、作り直す（11/22）
+        try:
+            tunnel.watch(now)
+        except Exception:
+            log.exception("LINE の受け口の見張りで止まりました（次の回に続けます）")
         conn = koe_db.connect()
         out = outbox.connect()
         try:
