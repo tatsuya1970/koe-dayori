@@ -201,6 +201,16 @@
   - 再起動のあと Wi-Fi が約6分つながらなかったのは、本人が Wi-Fi を切っていたため（不具合ではない）。そのおかげで LTE だけの状態になり、上の DNS の衝突が見つかった。LTE は起動から約20秒でつながる
 - **Wi-Fi を切って LTE だけで、話して送る・LINE の返信を受けて再生する、が動くことを確認した**（2026-11-20 21:32）
 
+## 起きたこと：LINE の受け口が切れたまま直らなかった（2026-11-22）
+
+- **起きたこと**：LINE から送ったお便りに、Pi が反応しなかった。本番のログには LINE からの受信が1件もなかった。受話器で話して送るほうは動いていた
+- **原因**：12:23 に Cloudflare との接続が切れ（`connection with edge closed`）、そのあと Cloudflare 側でトンネル自体が消された。遅くとも 13:04 から `Unauthorized: Tunnel not found` が出続けた。`cloudflared` は消えたトンネルにつなぎ直そうとし続けるだけで、プロセスは落ちない。そのため `Restart=always` が効かず、`systemctl` で見ても `active` のままだった。URL が変わらないので、`app/tunnel.py` も LINE に登録し直さなかった
+- **直したこと**：13:38 に Mac から Tailscale 経由で SSH し、`systemctl --user restart koe-tunnel` を1回実行した。4秒で新しい URL につながり、6秒後に `app/tunnel.py` が LINE に登録し直した。LINE から届くことを本人が確かめた
+- **失ったもの**：12:23〜13:38 に LINE から送ったお便り。LINE は届かなかった分を送り直さない
+- **残る問題**：Quick Tunnel は Cloudflare の稼働の保証がないので、また起こりうる。誰かが気づいて再起動するまで止まったままで、親の家に置くとここが弱点になる
+- **次にやること**：`cloudflared` がつながらない状態が数分続いたら、`koe-tunnel` を自動で再起動する見張りを Pi で作る（依頼文は `docs/handoff-2026-11-22-tunnel-watchdog.md`）。trycloudflare は作り直しが続くと 429 で断るので、再起動の間隔は空ける。製品版では、名前付きトンネル＋自分のドメイン、または SORACOM に置き換える（11/7 の節の「製品版」と同じ）
+- **見分け方**：LINE が反応しないときは、まず `journalctl _SYSTEMD_USER_UNIT=koe-tunnel.service` で `Tunnel not found` を探す
+
 ## 応募内容（原文）
 
 スマホを持たない高齢の親との連絡兼見守りガジェットを作ります。
