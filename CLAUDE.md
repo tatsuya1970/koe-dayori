@@ -30,7 +30,7 @@
 - **家族への通知**：LINE Messaging API（LINE Notifyは終了済みなので使わない）
 - **見守り**：人感センサー（秋月 SB612B など。あればミリ波 LD2410）
 - **通信（11/20変更）**：**SORACOM Onyx（LTE USBドングル、plan-D）が挿さっている間はLTEを優先**し、抜けば自動でWi-Fiに戻る（接続 `soracom` の route-metric 50 ＜ Wi-Fi 600。手順は `deploy/soracom-lte.sh`。ModemManager が要る）。通信はNetworkManager任せで、アプリのコードは通信手段を気にしない。Napter・Harvest は必要になったら入れる。（ハッカソン中はWi-Fiだった）
-- **LINEの返信の受け口（11/7変更）**：**Cloudflare Quick Tunnel**（`deploy/koe-tunnel.service`。URLは起動のたびに変わり、`app/tunnel.py` がLINEに登録し直す）。Tailscale Funnel（11/4決定）はLINEからつながらなくなったので受け口から外した（経緯はREADME）。遠隔SSHはTailscaleのまま。ドメインは買わない
+- **LINEの返信の受け口（11/7変更）**：**Cloudflare Quick Tunnel**（`deploy/koe-tunnel.service`。URLは起動のたびに変わり、`app/tunnel.py` がLINEに登録し直す）。Tailscale Funnel（11/4決定）はLINEからつながらなくなったので受け口から外した（経緯はREADME）。遠隔SSHはTailscaleのまま。ドメインは買わない。**（11/22決定）12月の試作機から、受け口を Cloudflare Workers（workers.dev）に置き、Pi が取りに行く方式に替える**（仕様書 D29）。それまでは `app/tunnel.py` の見張りが、5分つながらなければトンネルを作り直す
 - **外側と入出力（11/4変更）**：**古い黒電話（ダイヤル式）の中にPiを入れる**。受話器を取って話し、置いたら送る。家族からのお便りは受話器を取ると流れる（留守番電話の方式）。フックスイッチ→GPIO17、受話器の中はUSB音声アダプター＋小型スピーカー＋マイク。本体の音はUSBスピーカーフォン、写真と新着の知らせは手持ちのHDMIモニター。押しボタン（GPIO17）は改造が間に合わないときの予備
 
 ## 開発で守ること
